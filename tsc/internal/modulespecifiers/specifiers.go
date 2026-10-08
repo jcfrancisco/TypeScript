@@ -1100,6 +1100,7 @@ func tryGetModuleNameFromPaths(
 	compilerOptions *core.CompilerOptions,
 ) string {
 	caseSensitive := host.UseCaseSensitiveFileNames()
+	var baseCandidates []specPair
 	for key, values := range paths.Entries() {
 		for _, patternText := range values {
 			normalized := tspath.NormalizePath(patternText)
@@ -1151,19 +1152,22 @@ func tryGetModuleNameFromPaths(
 			// in module specifier generation. I have included it last, as it's difficult to tell exactly where it should be
 			// sorted among the others for a particular value of `importModuleSpecifierEnding`.
 
-			var candidates []specPair
-			for _, ending := range allowedEndings {
-				result := processEnding(
-					relativeToBaseUrl,
-					[]ModuleSpecifierEnding{ending},
-					compilerOptions,
-					host,
-				)
-				candidates = append(candidates, specPair{
-					ending: ending,
-					value:  result,
-				})
+			// Ending candidates depend on the file and host, not the paths pattern.
+			if baseCandidates == nil {
+				baseCandidates = make([]specPair, len(allowedEndings), len(allowedEndings)+1)
+				for i, ending := range allowedEndings {
+					baseCandidates[i] = specPair{
+						ending: ending,
+						value: processEnding(
+							relativeToBaseUrl,
+							[]ModuleSpecifierEnding{ending},
+							compilerOptions,
+							host,
+						),
+					}
+				}
 			}
+			candidates := baseCandidates
 			if len(tspath.TryGetExtensionFromPath(pattern)) > 0 {
 				candidates = append(candidates, specPair{
 					ending: ModuleSpecifierEndingJsExtension,
