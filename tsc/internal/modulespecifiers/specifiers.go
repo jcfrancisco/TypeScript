@@ -1103,9 +1103,14 @@ func tryGetModuleNameFromPaths(
 	for key, values := range paths.Entries() {
 		for _, patternText := range values {
 			normalized := tspath.NormalizePath(patternText)
-			pattern := getRelativePathIfInSameVolume(normalized, baseDirectory, caseSensitive)
-			if len(pattern) == 0 {
-				pattern = normalized
+			// Ordinary relative patterns are already relative to the paths base.
+			// Avoid rebuilding path components for every export candidate.
+			pattern := normalized
+			if tspath.IsRootedDiskPath(normalized) || tspath.IsUrl(normalized) ||
+				normalized == ".." || strings.HasPrefix(normalized, "../") {
+				if relative := getRelativePathIfInSameVolume(normalized, baseDirectory, caseSensitive); len(relative) > 0 {
+					pattern = relative
+				}
 			}
 			prefix, suffix, ok := strings.Cut(pattern, "*")
 
